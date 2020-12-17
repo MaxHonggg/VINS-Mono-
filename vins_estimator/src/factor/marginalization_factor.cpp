@@ -391,7 +391,7 @@ bool MarginalizationFactor::Evaluate(double const *const *parameters, double *re
     //-------先验残差的计算方法 rp - Hp * delta_x ---------------------------------------------//
     Eigen::Map<Eigen::VectorXd>(residuals, n) = marginalization_info->linearized_residuals + marginalization_info->linearized_jacobians * dx;//linearized_residuals 与 linearized_jacobians为边缘化后生成
     //---------------------------------------------------------------------------//
-
+ 
     //------- 构造雅可比矩阵  ---------------------------------------------//
     if (jacobians)
     {
