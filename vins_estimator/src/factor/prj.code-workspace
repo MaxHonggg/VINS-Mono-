@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "C:\\Users\\Strap Wang\\Desktop\\视觉SLAM\\开源SLAM方案\\VINS-Mono-master"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"vector": "cpp"
+		}
+	}
+}
