@@ -63,7 +63,7 @@ Clone the repository and catkin_make:
     catkin_make
     source ~/catkin_ws/devel/setup.bash
 ```
-
+ 
 ## 3. Visual-Inertial Odometry and Pose Graph Reuse on Public datasets
 Download [EuRoC MAV Dataset](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets). Although it contains stereo cameras, we only use one camera. The system also works with [ETH-asl cla dataset](http://robotics.ethz.ch/~asl-datasets/maplab/multi_session_mapping_CLA/bags/). We take EuRoC as the example.
 
