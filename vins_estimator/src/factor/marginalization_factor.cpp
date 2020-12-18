@@ -374,7 +374,9 @@ bool MarginalizationFactor::Evaluate(double const *const *parameters, double *re
         int size = marginalization_info->keep_block_size[i];
         int idx = marginalization_info->keep_block_idx[i] - m;  //m：边缘化变量个数 ==>idx：将第一个保留变量的ID为0
         Eigen::VectorXd x = Eigen::Map<const Eigen::VectorXd>(parameters[i], size); //将parameters[i]形状设置为size*1大小，每个单元行记录了每个优化变量的指针？？？？
+        //parameters 由 addr_shift 传入，addr_shift中的保留变量已经过优化计算
         Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginalization_info->keep_block_data[i], size);//keep_block_data:需要保留的变量的地址
+        //keep_block_data 由 parameter_block_data中的保留变量传入，parameter_block_data为加入约束因子时传入的parameter_blocks
         if (size != 7)
             dx.segment(idx, size) = x - x0;
         else

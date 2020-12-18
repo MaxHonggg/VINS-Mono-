@@ -933,7 +933,8 @@ void Estimator::optimization()          //优化环节：添加顶点进行迭�
         if (last_marginalization_info)
             delete last_marginalization_info;
         last_marginalization_info = marginalization_info;
-        last_marginalization_parameter_blocks = parameter_blocks;
+        last_marginalization_parameter_blocks = parameter_blocks;//parameter_blocks 为 push_back(addr_shift[it.first])得到，在先验残差块中
+        //与其它残差块经过挑选组成 keep_block_data
         
     }
     else    //MarginalizationFlag = MARGIN_SECOND_NEW，边缘化次新帧
