@@ -936,7 +936,7 @@ void Estimator::optimization()          //优化环节：添加顶点进行迭�
         last_marginalization_parameter_blocks = parameter_blocks;
         
     }
-    else
+    else    //MarginalizationFlag = MARGIN_SECOND_NEW，边缘化次新帧
     {
         if (last_marginalization_info &&
             std::count(std::begin(last_marginalization_parameter_blocks), std::end(last_marginalization_parameter_blocks), para_Pose[WINDOW_SIZE - 1]))

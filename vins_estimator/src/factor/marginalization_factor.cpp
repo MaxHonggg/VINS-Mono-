@@ -341,7 +341,7 @@ std::vector<double *> MarginalizationInfo::getParameterBlocks(std::unordered_map
             keep_block_data.push_back(parameter_block_data[it.first]);//需要保留的变量的地址
 
             //-----------------------------------------------------------------------------------------------//
-            keep_block_addr.push_back(addr_shift[it.first]);//需要保留的变量的地址？？？？？？？？？？？？？？
+            keep_block_addr.push_back(addr_shift[it.first]);//需要保留的变量的地址？？？？？？？？？？？？？？，下一轮转为了预积分因子的parameter_blocks
             //-----------------------------------------------------------------------------------------------//
 
         }
