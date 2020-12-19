@@ -377,7 +377,7 @@ bool MarginalizationFactor::Evaluate(double const *const *parameters, double *re
 
         Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginalization_info->keep_block_data[i], size);//keep_block_data：需要保留的变量的地址，为上一轮边缘化后的保留变量
         if (size != 7)
-            dx.segment(idx, size) = x - x0;
+            dx.segment(idx, size) = x - x0; //为何可以直接相减，变量已经对应好？？？？
         else
         {
             dx.segment<3>(idx + 0) = x.head<3>() - x0.head<3>();
