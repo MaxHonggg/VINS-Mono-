@@ -280,11 +280,15 @@ void process()
                     u_v_id.x() = relo_msg->points[i].x;
                     u_v_id.y() = relo_msg->points[i].y;
                     u_v_id.z() = relo_msg->points[i].z;
-                    match_points.push_back(u_v_id);
+                    match_points.push_back(u_v_id);  //匹配的世界坐标下特征点？？
                 }
-                Vector3d relo_t(relo_msg->channels[0].values[0], relo_msg->channels[0].values[1], relo_msg->channels[0].values[2]);
+
+                Vector3d relo_t(relo_msg->channels[0].values[0], relo_msg->channels[0].values[1], relo_msg->channels[0].values[2]);//闭环帧相对平移？
+
                 Quaterniond relo_q(relo_msg->channels[0].values[3], relo_msg->channels[0].values[4], relo_msg->channels[0].values[5], relo_msg->channels[0].values[6]);
+
                 Matrix3d relo_r = relo_q.toRotationMatrix();
+                
                 int frame_index;
                 frame_index = relo_msg->channels[0].values[7];
                 estimator.setReloFrame(frame_stamp, frame_index, match_points, relo_t, relo_r);

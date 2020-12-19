@@ -373,11 +373,13 @@ bool MarginalizationFactor::Evaluate(double const *const *parameters, double *re
     {
         int size = marginalization_info->keep_block_size[i];
         int idx = marginalization_info->keep_block_idx[i] - m;  //m：边缘化变量个数 ==>idx：将第一个保留变量的ID为0
-        Eigen::VectorXd x = Eigen::Map<const Eigen::VectorXd>(parameters[i], size); //将parameters[i]形状设置为size*1大小，从parameters[i]为首地址，连续取size个数据作为向量，parameters 为传入的 last_marginalization_blocks ,记录了该轮边缘化的所有变量x，这些变量已经由ceres进行了优化，将这些优化后的变量与上一轮边缘化的所有保留变量x0= keep_block_data作差 x-x0，得到变量的增量 dx,再乘以雅克比矩阵，得到理论的残差
+        Eigen::VectorXd x = Eigen::Map<const Eigen::VectorXd>(parameters[i], size); //将parameters[i]形状设置为size*1大小，从parameters[i]为首地址，连续取size个数据作为向量，
+        //parameters 为传入的 last_marginalization_blocks ,
+        //记录了该轮边缘化的所有变量x，这些变量已经由ceres进行了优化，将这些优化后的变量与上一轮边缘化的所有保留变量x0= keep_block_data作差 x-x0，得到变量的增量 dx ,再乘以雅克比矩阵，得到理论的残差
 
         Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginalization_info->keep_block_data[i], size);//keep_block_data：需要保留的变量的地址，为上一轮边缘化后的保留变量
         if (size != 7)
-            dx.segment(idx, size) = x - x0; //为何可以直接相减，变量已经对应好？？？？
+            dx.segment(idx, size) = x - x0; //为何可以直接相减，变量已经对应好？？？？： keep_block_data[i] <====> last_marginalization_blocks[i]
         else
         {
             dx.segment<3>(idx + 0) = x.head<3>() - x0.head<3>();

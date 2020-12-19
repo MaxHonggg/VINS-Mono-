@@ -600,14 +600,19 @@ void Estimator::double2vector()
     { 
         Matrix3d relo_r;
         Vector3d relo_t;
+
+        // rot_diff : 优化前后旋转变量的差异
         relo_r = rot_diff * Quaterniond(relo_Pose[6], relo_Pose[3], relo_Pose[4], relo_Pose[5]).normalized().toRotationMatrix();
         relo_t = rot_diff * Vector3d(relo_Pose[0] - para_Pose[0][0],
                                      relo_Pose[1] - para_Pose[0][1],
-                                     relo_Pose[2] - para_Pose[0][2]) + origin_P0;
+                                     relo_Pose[2] - para_Pose[0][2]) + origin_P0;   //para_Pose[0][2]已经过优化，，，origin_P0 = Ps[0];
+
         double drift_correct_yaw;
-        drift_correct_yaw = Utility::R2ypr(prev_relo_r).x() - Utility::R2ypr(relo_r).x();
+        drift_correct_yaw = Utility::R2ypr(prev_relo_r).x() - Utility::R2ypr(relo_r).x();//prev_relo_r：闭环算出，，relo_r：滑窗中闭环帧的位姿
+
         drift_correct_r = Utility::ypr2R(Vector3d(drift_correct_yaw, 0, 0));
         drift_correct_t = prev_relo_t - drift_correct_r * relo_t;   
+
         relo_relative_t = relo_r.transpose() * (Ps[relo_frame_local_index] - relo_t);
         relo_relative_q = relo_r.transpose() * Rs[relo_frame_local_index];
         relo_relative_yaw = Utility::normalizeAngle(Utility::R2ypr(Rs[relo_frame_local_index]).x() - Utility::R2ypr(relo_r).x());
@@ -774,7 +779,8 @@ void Estimator::optimization()          //优化环节：添加顶点进行迭�
     {
         //printf("set relocalization factor! \n");
         ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
-        problem.AddParameterBlock(relo_Pose, SIZE_POSE, local_parameterization);
+        problem.AddParameterBlock(relo_Pose, SIZE_POSE, local_parameterization);    //relo_Pose：滑窗中的闭环帧位姿为优化变量
+        //与 problem.AddResidualBlock 的传入参数有什么区别
         int retrive_feature_index = 0;
         int feature_index = -1;
         for (auto &it_per_id : f_manager.feature)
@@ -916,6 +922,12 @@ void Estimator::optimization()          //优化环节：添加顶点进行迭�
         marginalization_info->marginalize();
         ROS_DEBUG("marginalization %f ms", t_margin.toc());
 
+
+        /**
+         *  para_Pose[0] ||
+            para_SpeedBias[0])
+         * 
+        */
         std::unordered_map<long, double *> addr_shift;
         for (int i = 1; i <= WINDOW_SIZE; i++)
         {
@@ -924,6 +936,8 @@ void Estimator::optimization()          //优化环节：添加顶点进行迭�
         }
         for (int i = 0; i < NUM_OF_CAM; i++)
             addr_shift[reinterpret_cast<long>(para_Ex_Pose[i])] = para_Ex_Pose[i];
+
+
         if (ESTIMATE_TD)
         {
             addr_shift[reinterpret_cast<long>(para_Td[0])] = para_Td[0];
@@ -940,20 +954,23 @@ void Estimator::optimization()          //优化环节：添加顶点进行迭�
     else    //MarginalizationFlag = MARGIN_SECOND_NEW，边缘化次新帧
     {
         if (last_marginalization_info &&
-            std::count(std::begin(last_marginalization_parameter_blocks), std::end(last_marginalization_parameter_blocks), para_Pose[WINDOW_SIZE - 1]))
+            std::count(std::begin(last_marginalization_parameter_blocks), std::end(last_marginalization_parameter_blocks), para_Pose[WINDOW_SIZE - 1]))     //count函数的功能是：统计容器中等于value元素的个数
+                                    //para_Pose[WINDOW_SIZE - 1]：次新帧？？
         {
 
             MarginalizationInfo *marginalization_info = new MarginalizationInfo();
-            vector2double();
+            vector2double();    //RS,VS==>para_xxx
             if (last_marginalization_info)
             {
                 vector<int> drop_set;
                 for (int i = 0; i < static_cast<int>(last_marginalization_parameter_blocks.size()); i++)
                 {
                     ROS_ASSERT(last_marginalization_parameter_blocks[i] != para_SpeedBias[WINDOW_SIZE - 1]);
+
                     if (last_marginalization_parameter_blocks[i] == para_Pose[WINDOW_SIZE - 1])
-                        drop_set.push_back(i);
+                        drop_set.push_back(i);      //drop_set 中标记为para_Pose与para_SpeedBias的次新帧位置
                 }
+
                 // construct new marginlization_factor
                 MarginalizationFactor *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
                 ResidualBlockInfo *residual_block_info = new ResidualBlockInfo(marginalization_factor, NULL,
@@ -973,6 +990,10 @@ void Estimator::optimization()          //优化环节：添加顶点进行迭�
             marginalization_info->marginalize();
             ROS_DEBUG("end marginalization, %f ms", t_margin.toc());
             
+            /*
+            *   para_Pose[WINDOW_SIZE - 1]
+            * 
+            */
             std::unordered_map<long, double *> addr_shift;
             for (int i = 0; i <= WINDOW_SIZE; i++)
             {
@@ -1140,14 +1161,15 @@ void Estimator::setReloFrame(double _frame_stamp, int _frame_index, vector<Vecto
     match_points = _match_points;
     prev_relo_t = _relo_t;
     prev_relo_r = _relo_r;
+
     for(int i = 0; i < WINDOW_SIZE; i++)
     {
-        if(relo_frame_stamp == Headers[i].stamp.toSec())
+        if(relo_frame_stamp == Headers[i].stamp.toSec())    //从 Headers 中找到 闭环帧？
         {
             relo_frame_local_index = i;
-            relocalization_info = 1;
+            relocalization_info = 1;        //闭环标志位
             for (int j = 0; j < SIZE_POSE; j++)
-                relo_Pose[j] = para_Pose[i][j];
+                relo_Pose[j] = para_Pose[i][j]; //滑窗中的闭环帧的位姿
         }
     }
 }
