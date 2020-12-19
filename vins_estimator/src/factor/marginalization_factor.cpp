@@ -14,7 +14,7 @@ void ResidualBlockInfo::Evaluate()
         raw_jacobians[i] = jacobians[i].data();//.data操作：返回一个直接指向内存中存储vector元素位置的指针
         //dim += block_sizes[i] == 7 ? 6 : block_sizes[i];
     }
-    cost_function->Evaluate(parameter_blocks.data(), residuals.data(), raw_jacobians);
+    cost_function->Evaluate(parameter_blocks.data(), residuals.data(), raw_jacobians);//对于先验因子，传入的参数块为 last_marginalization_blocks，该参数块经过了ceres优化
 
     //std::vector<int> tmp_idx(block_sizes.size());
     //Eigen::MatrixXd tmp(dim, dim);
@@ -122,7 +122,7 @@ void MarginalizationInfo::preMarginalize()
             {
                 double *data = new double[size];
                 memcpy(data, it->parameter_blocks[i], sizeof(double) * size);
-                parameter_block_data[addr] = data;  //向parameter_block_data中填充： [所有优化变量地址] = 变量
+                parameter_block_data[addr] = data;  //向parameter_block_data中填充： [所有优化变量地址] = 变量首地址
             }
         }
     }
@@ -315,7 +315,7 @@ void MarginalizationInfo::marginalize()
     Eigen::VectorXd S_inv_sqrt = S_inv.cwiseSqrt();// Hessian矩阵特征值取逆开方  J^T*J => J^T
 
     linearized_jacobians = S_sqrt.asDiagonal() * saes2.eigenvectors().transpose();//恢复出 Jacobian 矩阵：               特征值开方*特征向量^T ？？
-    linearized_residuals = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;//恢复出残差 resudual=J^T*b：特征值取逆开方*特征向量^T *b
+    linearized_residuals = S_inv_sqrt.asDiagonal() * saes2.eigenvectors().transpose() * b;//恢复出残差 resudual=J^T*b：特征值取逆开方*特征向量^T *b, 已经带了负号？？？？？？？？？
 
     //---------  构造完成  -----------------------------------------------------------------------------------------------------------------//
     //std::cout << A << std::endl
@@ -341,7 +341,7 @@ std::vector<double *> MarginalizationInfo::getParameterBlocks(std::unordered_map
             keep_block_data.push_back(parameter_block_data[it.first]);//需要保留的变量的地址
 
             //-----------------------------------------------------------------------------------------------//
-            keep_block_addr.push_back(addr_shift[it.first]);//需要保留的变量的地址？？？？？？？？？？？？？？，下一轮转为了预积分因子的parameter_blocks
+            keep_block_addr.push_back(addr_shift[it.first]);//需要保留的变量的地址，下一轮转为了预积分因子的last_marginalization_parameter_blocks  ===> parameter_blocks，已经过本次优化？
             //-----------------------------------------------------------------------------------------------//
 
         }
@@ -373,10 +373,9 @@ bool MarginalizationFactor::Evaluate(double const *const *parameters, double *re
     {
         int size = marginalization_info->keep_block_size[i];
         int idx = marginalization_info->keep_block_idx[i] - m;  //m：边缘化变量个数 ==>idx：将第一个保留变量的ID为0
-        Eigen::VectorXd x = Eigen::Map<const Eigen::VectorXd>(parameters[i], size); //将parameters[i]形状设置为size*1大小，每个单元行记录了每个优化变量的指针？？？？
-        //parameters 由 addr_shift 传入，addr_shift中的保留变量已经过优化计算
-        Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginalization_info->keep_block_data[i], size);//keep_block_data:需要保留的变量的地址
-        //keep_block_data 由 parameter_block_data中的保留变量传入，parameter_block_data为加入约束因子时传入的parameter_blocks
+        Eigen::VectorXd x = Eigen::Map<const Eigen::VectorXd>(parameters[i], size); //将parameters[i]形状设置为size*1大小，从parameters[i]为首地址，连续取size个数据作为向量，parameters 为传入的 last_marginalization_blocks ,记录了该轮边缘化的所有变量x，这些变量已经由ceres进行了优化，将这些优化后的变量与上一轮边缘化的所有保留变量x0= keep_block_data作差 x-x0，得到变量的增量 dx,再乘以雅克比矩阵，得到理论的残差
+
+        Eigen::VectorXd x0 = Eigen::Map<const Eigen::VectorXd>(marginalization_info->keep_block_data[i], size);//keep_block_data：需要保留的变量的地址，为上一轮边缘化后的保留变量
         if (size != 7)
             dx.segment(idx, size) = x - x0;
         else
@@ -391,7 +390,7 @@ bool MarginalizationFactor::Evaluate(double const *const *parameters, double *re
     }
 
     //-------先验残差的计算方法： rp - Hp * delta_x ---------------------------------------------//
-    Eigen::Map<Eigen::VectorXd>(residuals, n) = marginalization_info->linearized_residuals + marginalization_info->linearized_jacobians * dx;//linearized_residuals 与 linearized_jacobians为边缘化后生成
+    Eigen::Map<Eigen::VectorXd>(residuals, n) = marginalization_info->linearized_residuals + marginalization_info->linearized_jacobians * dx;//linearized_residuals 与 linearized_jacobians为边缘化后生成的， linearized_residuals已经带了负号？？？？？？？？？
     //---------------------------------------------------------------------------//
   
     //------- 构造雅可比矩阵  - --------------------------------------------//

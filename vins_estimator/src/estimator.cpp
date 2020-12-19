@@ -700,13 +700,13 @@ void Estimator::optimization()          //优化环节：添加顶点进行迭�
 
     TicToc t_whole, t_prepare;
     vector2double();        //Rs,Ps,Vs,Bas,Bgs,ric,tic ==> para_pose,para_speed_Bias,para_speed_Ex_Pose：用于ceres优化输入
-
+                            //para_SpeedBias[i][0，1,2] = Vs[i].x，y，z;
     if (last_marginalization_info)  //上一轮已经有边缘化的信息
     {
         // construct new marginlization_factor
         MarginalizationFactor *marginalization_factor = new MarginalizationFactor(last_marginalization_info);
         problem.AddResidualBlock(marginalization_factor, NULL,          //加入边缘化--先验因子
-                                 last_marginalization_parameter_blocks);
+                                 last_marginalization_parameter_blocks);    //last_marginalization_blocks会参与到变量优化中，会进行参数更新！！！！！！！！！！！！！！！！
     }
 
     for (int i = 0; i < WINDOW_SIZE; i++)   //IMU预积分因子
@@ -833,7 +833,7 @@ void Estimator::optimization()          //优化环节：添加顶点进行迭�
     {
         MarginalizationInfo *marginalization_info = new MarginalizationInfo();
         vector2double();    ////Rs,Ps,Vs,Bas,Bgs,ric,tic ==> para_xxx
-
+                            ////para_SpeedBias[i][0，1,2] = Vs[i].x，y，z;
         if (last_marginalization_info)  //上一轮已有过边缘化约束
         {
             vector<int> drop_set;
