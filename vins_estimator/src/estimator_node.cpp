@@ -288,7 +288,7 @@ void process()
                 Quaterniond relo_q(relo_msg->channels[0].values[3], relo_msg->channels[0].values[4], relo_msg->channels[0].values[5], relo_msg->channels[0].values[6]);
 
                 Matrix3d relo_r = relo_q.toRotationMatrix();
-                
+
                 int frame_index;
                 frame_index = relo_msg->channels[0].values[7];
                 estimator.setReloFrame(frame_stamp, frame_index, match_points, relo_t, relo_r);
@@ -315,7 +315,7 @@ void process()
                 xyz_uv_velocity << x, y, z, p_u, p_v, velocity_x, velocity_y;
                 image[feature_id].emplace_back(camera_id,  xyz_uv_velocity);
             }
-            estimator.processImage(image, img_msg->header);
+            estimator.processImage(image, img_msg->header);// 优化、滑窗
 
             double whole_t = t_s.toc();
             printStatistics(estimator, whole_t);

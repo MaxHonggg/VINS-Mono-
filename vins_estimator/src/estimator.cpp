@@ -604,18 +604,21 @@ void Estimator::double2vector()
         // rot_diff : 优化前后旋转变量的差异
         relo_r = rot_diff * Quaterniond(relo_Pose[6], relo_Pose[3], relo_Pose[4], relo_Pose[5]).normalized().toRotationMatrix();
         relo_t = rot_diff * Vector3d(relo_Pose[0] - para_Pose[0][0],
-                                     relo_Pose[1] - para_Pose[0][1],
+                                     relo_Pose[1] - para_Pose[0][1],        // relo_Pose 为滑窗中的闭环帧位姿，已经过回环优化
                                      relo_Pose[2] - para_Pose[0][2]) + origin_P0;   //para_Pose[0][2]已经过优化，，，origin_P0 = Ps[0];
 
         double drift_correct_yaw;
         drift_correct_yaw = Utility::R2ypr(prev_relo_r).x() - Utility::R2ypr(relo_r).x();//prev_relo_r：闭环算出，，relo_r：滑窗中闭环帧的位姿
 
-        drift_correct_r = Utility::ypr2R(Vector3d(drift_correct_yaw, 0, 0));
-        drift_correct_t = prev_relo_t - drift_correct_r * relo_t;   
+        drift_correct_r = Utility::ypr2R(Vector3d(drift_correct_yaw, 0, 0));    //yaw角差转为旋转矩阵，
+        drift_correct_t = prev_relo_t - drift_correct_r * relo_t;               //闭环算出的平移 - 优化算出的平移，
+        //在发布位姿话题时会进行\
+        correct_t = estimator.drift_correct_r * estimator.Ps[WINDOW_SIZE] + estimator.drift_correct_t\
+        的操作 
 
-        relo_relative_t = relo_r.transpose() * (Ps[relo_frame_local_index] - relo_t);
-        relo_relative_q = relo_r.transpose() * Rs[relo_frame_local_index];
-        relo_relative_yaw = Utility::normalizeAngle(Utility::R2ypr(Rs[relo_frame_local_index]).x() - Utility::R2ypr(relo_r).x());
+        relo_relative_t = relo_r.transpose() * (Ps[relo_frame_local_index] - relo_t);//relo_r*relo_relative_t + relo_t = Ps[relo_frame_local_index]
+        relo_relative_q = relo_r.transpose() * Rs[relo_frame_local_index];  // b_R_w * w_R_b?
+        relo_relative_yaw = Utility::normalizeAngle(Utility::R2ypr(Rs[relo_frame_local_index]).x() - Utility::R2ypr(relo_r).x());//闭环算出的yaw - 优化算出的 yaw
         //cout << "vins relo " << endl;
         //cout << "vins relative_t " << relo_relative_t.transpose() << endl;
         //cout << "vins relative_yaw " <<relo_relative_yaw << endl;
@@ -790,19 +793,20 @@ void Estimator::optimization()          //优化环节：添加顶点进行迭�
                 continue;
             ++feature_index;
             int start = it_per_id.start_frame;
-            if(start <= relo_frame_local_index)
+            if(start <= relo_frame_local_index)     //特征点的首次观测帧 早于 闭环帧
             {   
-                while((int)match_points[retrive_feature_index].z() < it_per_id.feature_id)
+                while((int)match_points[retrive_feature_index].z() < it_per_id.feature_id)//match_points[].z是id号？？？
                 {
                     retrive_feature_index++;
                 }
                 if((int)match_points[retrive_feature_index].z() == it_per_id.feature_id)
                 {
-                    Vector3d pts_j = Vector3d(match_points[retrive_feature_index].x(), match_points[retrive_feature_index].y(), 1.0);
-                    Vector3d pts_i = it_per_id.feature_per_frame[0].point;
+                    Vector3d pts_j = Vector3d(match_points[retrive_feature_index].x(), match_points[retrive_feature_index].y(), 1.0);//特征点闭环帧的观测？
+                    Vector3d pts_i = it_per_id.feature_per_frame[0].point; //特征点在起始帧上的观测
                     
                     ProjectionFactor *f = new ProjectionFactor(pts_i, pts_j);
                     problem.AddResidualBlock(f, loss_function, para_Pose[start], relo_Pose, para_Ex_Pose[0], para_Feature[feature_index]);
+                    //para_Pose[start]观测到pts_i，   relo_Pose上观测到pts_j，会对闭环帧的位姿进行优化
                     retrive_feature_index++;
                 }     
             }
@@ -1159,7 +1163,7 @@ void Estimator::setReloFrame(double _frame_stamp, int _frame_index, vector<Vecto
     relo_frame_index = _frame_index;
     match_points.clear();
     match_points = _match_points;
-    prev_relo_t = _relo_t;
+    prev_relo_t = _relo_t;      //历史帧到闭环帧的转换
     prev_relo_r = _relo_r;
 
     for(int i = 0; i < WINDOW_SIZE; i++)
